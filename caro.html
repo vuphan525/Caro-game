@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cờ Caro – Single File</title>
+  <style>
+    :root {
+      --bg: #0f172a;          /* slate-900 */
+      --panel: #111827;       /* gray-900 */
+      --muted: #334155;       /* slate-700 */
+      --text: #e5e7eb;        /* gray-200 */
+      --accent: #38bdf8;      /* sky-400 */
+      --accent-2: #22c55e;    /* green-500 */
+      --danger: #ef4444;      /* red-500 */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 600px at 20% -10%, #1f2937, transparent), var(--bg);
+      color: var(--text);
+      min-height: 100dvh; display: flex; align-items: center; justify-content: center; padding: 16px;
+    }
+    .app {
+      width: min(100%, 1100px);
+      display: grid; gap: 16px;
+      grid-template-columns: 320px 1fr;
+    }
+    @media (max-width: 900px){ .app{ grid-template-columns: 1fr; } }
+
+    .card { background: rgba(17,24,39,.8); border: 1px solid #1f2937; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+    .panel { padding: 18px; }
+    .title { font-size: 22px; font-weight: 800; letter-spacing: .2px; display:flex; align-items:center; gap:10px; }
+    .title .dot { width:10px; height:10px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 18px var(--accent); }
+
+    .row { display: grid; gap: 10px; margin-top: 14px; }
+    .row.cols { grid-template-columns: repeat(2, 1fr); }
+
+    label { font-size: 13px; color: #94a3b8; }
+    input[type="number"] { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #374151; background: #0b1220; color: var(--text); outline: none; }
+    input[type="number"]:focus{ border-color: var(--accent); box-shadow: 0 0 0 3px rgba(56,189,248,.15);} 
+
+    .btns { display: flex; flex-wrap: wrap; gap: 10px; }
+    button { cursor: pointer; padding: 10px 14px; border-radius: 12px; border: 1px solid #334155; background: #0b1220; color: var(--text); font-weight: 600; }
+    button:hover { border-color: var(--accent); }
+    .primary { background: linear-gradient(135deg, #0ea5e9, #22d3ee); color: #00131a; border: none; }
+    .danger { background: #111827; border-color: #4b5563; color: #fecaca; }
+    .ghost { background: #0b1220; }
+    .muted { color: #94a3b8; font-size: 13px; }
+
+    .status { margin-top: 12px; padding: 10px 12px; background: #0b1220; border-radius: 12px; border: 1px solid #334155; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .pill { padding: 6px 10px; border-radius: 999px; background: #0b1624; border: 1px solid #334155; font-weight:700; letter-spacing:.4px; }
+    .pill.x { color: #93c5fd; border-color:#1d4ed8; }
+    .pill.o { color: #86efac; border-color:#16a34a; }
+
+    /* Board */
+    .board-wrap { padding: 16px; }
+    .board { --size: 15; display: grid; grid-template-columns: repeat(var(--size), 1fr); gap: 2px; background: #0b1220; border: 1px solid #334155; padding: 6px; border-radius: 14px; user-select: none; touch-action: manipulation; }
+    .cell { width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; font-weight: 900; font-size: 20px; border-radius: 8px; background: #0a1020; border: 1px solid #1f2937; transition: transform .06s ease, background-color .2s ease, box-shadow .2s ease; }
+    .cell:hover { transform: translateY(-1px); border-color: #334155; }
+    .cell.empty:hover { box-shadow: 0 0 0 3px rgba(56,189,248,.12) inset; }
+    .cell.x { color: #93c5fd; text-shadow: 0 0 14px rgba(59,130,246,.35); }
+    .cell.o { color: #86efac; text-shadow: 0 0 14px rgba(34,197,94,.35); }
+    .cell.last { outline: 2px dashed rgba(148,163,184,.35); outline-offset: -4px; }
+    .cell.win { background: rgba(34,197,94,.12); border-color: #16a34a; }
+    .dim { opacity: .55; }
+
+    .footer { margin-top: 10px; display:flex; flex-wrap: wrap; gap: 8px; align-items:center; justify-content: space-between; }
+    .hist { font-size: 12px; color:#9ca3af; }
+    .hist b { color:#e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card panel">
+      <div class="title"><span class="dot"></span> Cờ Caro (Gomoku)</div>
+      <div class="row">
+        <div class="muted">Chơi 2 người trên cùng máy. Luật: 5 ký hiệu liên tiếp theo hàng, cột hoặc chéo sẽ thắng.</div>
+      </div>
+      <div class="row cols">
+        <div>
+          <label for="size">Kích thước bàn (10–25)</label>
+          <input id="size" type="number" min="10" max="25" value="15" />
+        </div>
+        <div>
+          <label for="winlen">Số quân để thắng (3–6)</label>
+          <input id="winlen" type="number" min="3" max="6" value="5" />
+        </div>
+      </div>
+      <div class="row btns">
+        <button class="primary" id="new">Khởi tạo bàn</button>
+        <button class="ghost" id="undo">Đi lại (Undo)</button>
+        <button class="danger" id="reset">Chơi lại</button>
+      </div>
+      <div class="status" id="status">
+        <span>Trạng thái: <b id="stateText">Đang chờ bắt đầu…</b></span>
+        <span class="pill" id="turnPill">—</span>
+      </div>
+      <div class="footer">
+        <div class="hist" id="hist">Nước đi: <b>0</b></div>
+        <div class="muted">Tip: Nhấn <b>R</b> để chơi lại, <b>Z</b> để undo.</div>
+      </div>
+    </div>
+
+    <div class="card board-wrap">
+      <div id="board" class="board" aria-label="Bàn cờ"></div>
+    </div>
+  </div>
+
+  <script>
+    const boardEl = document.getElementById('board');
+    const sizeEl = document.getElementById('size');
+    const winEl = document.getElementById('winlen');
+    const stateText = document.getElementById('stateText');
+    const turnPill = document.getElementById('turnPill');
+    const histEl = document.getElementById('hist').querySelector('b');
+
+    const btnNew = document.getElementById('new');
+    const btnUndo = document.getElementById('undo');
+    const btnReset = document.getElementById('reset');
+
+    let size = 15;
+    let winLen = 5;
+    let board = [];
+    let current = 'X';
+    let moves = []; // stack of {r,c,player}
+    let gameOver = false;
+
+    function init() {
+      size = clamp(parseInt(sizeEl.value || 15,10), 10, 25);
+      winLen = clamp(parseInt(winEl.value || 5,10), 3, 6);
+      sizeEl.value = size; winEl.value = winLen;
+      boardEl.style.setProperty('--size', size);
+      boardEl.innerHTML = '';
+      board = Array.from({length:size}, ()=> Array(size).fill(''));
+      current = 'X';
+      moves = [];
+      gameOver = false;
+      stateText.textContent = 'Lượt: người chơi X';
+      setTurnPill('X');
+      histEl.textContent = '0';
+      render();
+    }
+
+    function setTurnPill(p){
+      turnPill.textContent = p === 'X' ? 'Lượt: X' : 'Lượt: O';
+      turnPill.className = 'pill ' + (p==='X'?'x':'o');
+    }
+
+    function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+    function render() {
+      // draw cells
+      boardEl.innerHTML = '';
+      for (let r=0; r<size; r++){
+        for (let c=0; c<size; c++){
+          const cell = document.createElement('button');
+          cell.className = 'cell' + (board[r][c] ? ' ' + (board[r][c].toLowerCase()) : ' empty');
+          cell.dataset.r = r; cell.dataset.c = c;
+          cell.setAttribute('aria-label', `Ô ${r+1},${c+1}`);
+          cell.textContent = board[r][c];
+          cell.addEventListener('click', onCellClick);
+          boardEl.appendChild(cell);
+        }
+      }
+      // mark last move
+      if (moves.length){
+        const last = moves[moves.length-1];
+        const idx = last.r*size + last.c;
+        boardEl.children[idx]?.classList.add('last');
+      }
+    }
+
+    function onCellClick(e){
+      if (gameOver) return;
+      const r = parseInt(e.currentTarget.dataset.r,10);
+      const c = parseInt(e.currentTarget.dataset.c,10);
+      if (board[r][c]) return; // occupied
+      place(r,c,current);
+      const result = assess(r,c,current);
+      if (result.won){
+        gameOver = true;
+        stateText.textContent = `Kết thúc: ${current} thắng!`;
+        highlight(result.line);
+        setDimExcept(result.line);
+        turnPill.textContent = 'Đã kết thúc';
+        turnPill.className = 'pill';
+        return;
+      }
+      if (moves.length === size*size){
+        gameOver = true; stateText.textContent = 'Hòa!'; turnPill.className='pill'; turnPill.textContent='Hòa'; return;
+      }
+      // switch
+      current = current === 'X' ? 'O' : 'X';
+      stateText.textContent = `Lượt: người chơi ${current}`;
+      setTurnPill(current);
+    }
+
+    function place(r,c,player){
+      board[r][c] = player;
+      moves.push({r,c,player});
+      histEl.textContent = String(moves.length);
+      const idx = r*size + c;
+      const el = boardEl.children[idx];
+      if (el){ el.textContent = player; el.classList.remove('empty'); el.classList.add(player.toLowerCase()); }
+      // remove previous last tag
+      [...boardEl.children].forEach(x=>x.classList.remove('last'));
+      el?.classList.add('last');
+    }
+
+    function assess(r,c,player){
+      const dirs = [ [0,1], [1,0], [1,1], [1,-1] ];
+      for (const [dr,dc] of dirs){
+        const line = collectLine(r,c,dr,dc,player);
+        if (line.length >= winLen){ return {won:true, line}; }
+      }
+      return {won:false, line:[]};
+    }
+
+    function collectLine(r,c,dr,dc,player){
+      const line = [{r,c}];
+      // forward
+      let rr=r+dr, cc=c+dc;
+      while (inRange(rr,cc) && board[rr][cc]===player){ line.push({r:rr,c:cc}); rr+=dr; cc+=dc; }
+      // backward
+      rr=r-dr; cc=c-dc;
+      while (inRange(rr,cc) && board[rr][cc]===player){ line.unshift({r:rr,c:cc}); rr-=dr; cc-=dc; }
+      return line;
+    }
+
+    function inRange(r,c){ return r>=0 && r<size && c>=0 && c<size; }
+
+    function highlight(cells){
+      for (const {r,c} of cells){
+        const idx = r*size + c; boardEl.children[idx]?.classList.add('win');
+      }
+    }
+
+    function setDimExcept(cells){
+      const keep = new Set(cells.map(({r,c})=> r+","+c));
+      [...boardEl.children].forEach((el,i)=>{
+        const r = Math.floor(i/size), c = i%size;
+        if (!keep.has(r+","+c)) el.classList.add('dim');
+      });
+    }
+
+    function undo(){
+      if (!moves.length || gameOver) return;
+      const last = moves.pop();
+      board[last.r][last.c] = '';
+      current = last.player; // back to who just played
+      stateText.textContent = `Lượt: người chơi ${current}`;
+      setTurnPill(current);
+      histEl.textContent = String(moves.length);
+      render();
+    }
+
+    function softReset(){
+      // keep size & winLen
+      board = Array.from({length:size}, ()=> Array(size).fill(''));
+      current = 'X'; moves = []; gameOver = false; stateText.textContent='Lượt: người chơi X'; setTurnPill('X'); histEl.textContent='0'; render();
+    }
+
+    // Buttons
+    btnNew.addEventListener('click', init);
+    btnUndo.addEventListener('click', undo);
+    btnReset.addEventListener('click', softReset);
+
+    // Hotkeys
+    window.addEventListener('keydown', (e)=>{
+      if (e.key === 'r' || e.key === 'R') { e.preventDefault(); softReset(); }
+      if (e.key === 'z' || e.key === 'Z') { e.preventDefault(); undo(); }
+      if (e.key === 'n' || e.key === 'N') { e.preventDefault(); init(); }
+    });
+
+    // First init
+    init();
+  </script>
+</body>
+</html>
